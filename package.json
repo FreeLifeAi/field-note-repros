@@ -1,6 +1,6 @@
 {
   "name": "@freelifeai/field-note-repros",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Deterministic synthetic reproduction harnesses, scoring rubrics, and statistical verifiers for Free Life AI Labs Research Field Notes 01, 02, and 03.",
   "license": "Apache-2.0",
   "type": "module",

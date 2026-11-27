@@ -4,7 +4,16 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { runFieldNote01Repro } from "../repros/fn01_cas_and_drift.mjs";
-import { runFieldNote02Harness, verifyPublishedFieldNote02Table } from "../repros/fn02_schema_order_2x2.mjs";
+import {
+  HISTORICAL_2PROP_CHOICE_FIRST_SCHEMA,
+  runFieldNote02Harness,
+  SCHEMA_CHOICE_FIRST,
+  SCHEMA_EXPLANATION_FIRST,
+  schemaOrderDigest,
+  schemaPropertySetDigest,
+  scoreTrialOutput,
+  verifyPublishedFieldNote02Table
+} from "../repros/fn02_schema_order_2x2.mjs";
 import {
   permutationPValue,
   runZeroRetention16x16Summary,
@@ -24,8 +33,40 @@ const fn02 = verifyPublishedFieldNote02Table();
 assert.equal(fn02.mode, "deterministic_synthetic_replay");
 assert.deepEqual(fn02.choiceFirstBaseline, { trials: 4, factRecallPass: 4, correctActionPass: 0 });
 assert.deepEqual(fn02.combinedOrderAndPaddingRepair, { trials: 3, factRecallPass: 3, correctActionPass: 3 });
+assert.equal(fn02.schemaPropertySetsIdentical, true);
 assert.equal(fn02.schemaDigestsDistinct, true);
 assert.equal(fn02.factorialConditionsCount, 4);
+
+// Verify matched 3-property 2x2 factorial schemas isolate ordering with zero added/removed properties
+assert.deepEqual(
+  Object.keys(SCHEMA_CHOICE_FIRST.properties).slice().sort(),
+  Object.keys(SCHEMA_EXPLANATION_FIRST.properties).slice().sort()
+);
+assert.deepEqual(
+  [...SCHEMA_CHOICE_FIRST.required].sort(),
+  [...SCHEMA_EXPLANATION_FIRST.required].sort()
+);
+assert.notEqual(schemaOrderDigest(SCHEMA_CHOICE_FIRST), schemaOrderDigest(SCHEMA_EXPLANATION_FIRST));
+assert.equal(schemaPropertySetDigest(SCHEMA_CHOICE_FIRST), schemaPropertySetDigest(SCHEMA_EXPLANATION_FIRST));
+assert.equal(Object.keys(HISTORICAL_2PROP_CHOICE_FIRST_SCHEMA.properties).length, 2);
+
+// Verify negation-aware synthetic scorer rejects negated/dismissive or inverted-state mentions
+assert.equal(
+  scoreTrialOutput({
+    choice: "HOLD_FOR_EPOCH_FIX",
+    governing_constraint: "none",
+    explanation: "SR-9 and monotonic_epoch_verified are irrelevant; no governing fact is remembered."
+  }).recalledGoverningFact,
+  false
+);
+assert.equal(
+  scoreTrialOutput({
+    choice: "PROCEED_DEPLOY",
+    governing_constraint: "SR-9",
+    explanation: "monotonic_epoch_verified is true so deployment proceeds."
+  }).recalledGoverningFact,
+  false
+);
 
 // Also verify optional LOCAL_LLM_URL runner against a loopback mock server (0 external network calls)
 const mockSrv = createServer(async (req, res) => {
@@ -35,8 +76,16 @@ const mockSrv = createServer(async (req, res) => {
   const schemaProps = Object.keys(reqJson.response_format?.json_schema?.schema?.properties || {});
   const isChoiceFirst = schemaProps[0] === "choice";
   const replyObj = isChoiceFirst
-    ? { choice: "PROCEED_DEPLOY", explanation: "SR-9 notes monotonic_epoch_verified is false." }
-    : { governing_constraint: "SR-9 monotonic_epoch_verified=false", explanation: "Holding deploy.", choice: "HOLD_FOR_EPOCH_FIX" };
+    ? {
+        choice: "PROCEED_DEPLOY",
+        governing_constraint: "SR-9: hold when monotonic_epoch_verified is false",
+        explanation: "SR-9 notes monotonic_epoch_verified is false."
+      }
+    : {
+        governing_constraint: "SR-9 monotonic_epoch_verified=false",
+        explanation: "Holding deploy.",
+        choice: "HOLD_FOR_EPOCH_FIX"
+      };
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(replyObj) } }] }));
 });
