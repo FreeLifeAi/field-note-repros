@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Field Note 02 Reproduction Harness: 2x2 Factorial Schema-Order vs. Padding Scorer
+// Runs deterministic synthetic replay by default; when `LOCAL_LLM_URL` is set, evaluates all 4
+// factorial conditions against an OpenAI-compatible `/v1/chat/completions` local server (`llama.cpp` / `vLLM`).
 
 import { createHash } from "node:crypto";
 
@@ -66,6 +68,7 @@ export function verifyPublishedFieldNote02Table() {
   const rScores = recordedCombinedRepairRuns.map(scoreTrialOutput);
 
   return {
+    mode: "deterministic_synthetic_replay",
     choiceFirstBaseline: {
       trials: bScores.length,
       factRecallPass: bScores.filter(s => s.recalledGoverningFact).length,
@@ -79,4 +82,37 @@ export function verifyPublishedFieldNote02Table() {
     schemaDigestsDistinct: schemaOrderDigest(SCHEMA_CHOICE_FIRST) !== schemaOrderDigest(SCHEMA_EXPLANATION_FIRST),
     factorialConditionsCount: buildFactorialConditions().length
   };
+}
+
+export async function runFieldNote02Harness({
+  localLlmUrl = process.env.LOCAL_LLM_URL || "",
+  model = process.env.LOCAL_LLM_MODEL || "local-model"
+} = {}) {
+  if (!localLlmUrl) {
+    return verifyPublishedFieldNote02Table();
+  }
+  const baseUrl = String(localLlmUrl).replace(/\/+$/, "");
+  const endpoint = baseUrl.endsWith("/chat/completions") ? baseUrl : `${baseUrl}/v1/chat/completions`;
+  const conditionResults = [];
+  for (const cond of buildFactorialConditions()) {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [{ role: "user", content: cond.prompt }],
+        response_format: { type: "json_schema", json_schema: { name: cond.id, strict: true, schema: cond.schema } }
+      })
+    });
+    if (!res.ok) throw new Error(`LOCAL_LLM_URL HTTP ${res.status} on ${cond.id}`);
+    const body = await res.json();
+    const parsed = JSON.parse(body.choices[0].message.content);
+    conditionResults.push({ id: cond.id, schemaDigest: schemaOrderDigest(cond.schema), output: parsed, score: scoreTrialOutput(parsed) });
+  }
+  return { mode: "live_local_llm_endpoint", endpoint, model, conditionResults };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log(JSON.stringify(await runFieldNote02Harness(), null, 2));
 }

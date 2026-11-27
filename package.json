@@ -1,16 +1,17 @@
 {
   "name": "@freelifeai/field-note-repros",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic synthetic reproduction harnesses, scoring rubrics, and statistical verifiers for Free Life AI Labs Research Field Notes 01, 02, and 03.",
   "license": "Apache-2.0",
   "type": "module",
+  "homepage": "https://freelifeai.com/research/",
   "author": "Free Life AI Labs Inc. <Contact@freelifeai.com> (https://freelifeai.com)",
   "repository": {
     "type": "git",
     "url": "https://github.com/FreeLifeAi/field-note-repros.git"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "test": "node --no-warnings tests/run_all.mjs"

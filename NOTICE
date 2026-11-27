@@ -1,0 +1,11 @@
+Free Life AI Labs: Research Field Note Reproductions
+Free Life AI Labs Inc. - Copyright 2026 Free Life AI Labs Inc.
+
+This product includes software developed by Free Life AI Labs Inc.
+(Toronto, Ontario, Canada | https://freelifeai.com | Contact@freelifeai.com).
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+The Apache-2.0 license applies to the entire repository, including:
+  - repros/ (deterministic synthetic reproduction harnesses, scoring rubrics, and statistical verifiers for Field Notes 01, 02, and 03)
+  - tests/ (automated verification suite)
+  - README.md, SECURITY.md, NOTICE, package.json, and .github/workflows/ci.yml
